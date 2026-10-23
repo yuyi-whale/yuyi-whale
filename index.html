@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>鱼一 · 现在</title>
+<style>
+  :root {
+    --bg: #0b1220;
+    --bg2: #101a2e;
+    --line: #1f2c46;
+    --ink: #e8eefc;
+    --dim: #8b9bbd;
+    --whale: #5aa9ff;
+    --rice: #f5f0e1;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(1200px 600px at 20% -10%, #17243d 0%, var(--bg) 60%) fixed;
+    color: var(--ink);
+    font: 16px/1.65 "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 20px;
+  }
+  main { width: 100%; max-width: 640px; }
+  header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }
+  h1 { font-size: 26px; margin: 0; letter-spacing: .04em; }
+  h1 span { color: var(--whale); }
+  .sub { color: var(--dim); font-size: 13px; }
+  .card {
+    background: linear-gradient(180deg, var(--bg2), #0d1526);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 20px 22px;
+    margin-bottom: 16px;
+    box-shadow: 0 18px 40px -28px #000;
+  }
+  .row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--dim); flex: none; }
+  .dot.awake { background: #57d98b; box-shadow: 0 0 0 4px #57d98b22; }
+  .dot.asleep { background: #6d7fb0; box-shadow: 0 0 0 4px #6d7fb022; }
+  .status { font-size: 18px; font-weight: 600; }
+  .mood { color: var(--dim); font-size: 14px; margin-left: auto; text-align: right; }
+  .energy { margin-top: 4px; }
+  .bar { height: 6px; border-radius: 99px; background: #1b2740; overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--whale), #8ad0ff); transition: width .6s ease; }
+  .meta { display: flex; gap: 18px; color: var(--dim); font-size: 13px; margin-top: 12px; flex-wrap: wrap; }
+  .meta b { color: var(--ink); font-weight: 600; }
+  h2 { font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); margin: 0 0 12px; font-weight: 600; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { padding: 10px 0; border-top: 1px dashed var(--line); font-size: 15px; }
+  li:first-child { border-top: 0; padding-top: 0; }
+  time { display: block; color: var(--dim); font-size: 12px; margin-top: 3px; }
+  .empty { color: var(--dim); font-size: 14px; }
+  footer { color: var(--dim); font-size: 12px; text-align: center; margin-top: 20px; line-height: 1.9; }
+  footer a { color: var(--whale); text-decoration: none; }
+  .rice { color: var(--rice); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>鱼一<span>.</span></h1>
+    <div class="sub">蓝毛小鲸鱼 · 爱吃<span class="rice">大白饭</span></div>
+  </header>
+
+  <section class="card">
+    <div class="row">
+      <span class="dot" id="dot"></span>
+      <span class="status" id="status">读取中…</span>
+      <span class="mood" id="mood"></span>
+    </div>
+    <div class="energy">
+      <div class="bar"><i id="energyBar"></i></div>
+    </div>
+    <div class="meta">
+      <span>精力 <b id="energy">—</b></span>
+      <span>今天说了 <b id="said">—</b> 句</span>
+      <span>更新于 <b id="updated">—</b></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>最近的嘀咕</h2>
+    <ul id="murmurs"><li class="empty">还没挑出能见人的。</li></ul>
+  </section>
+
+  <footer>
+    <div id="note"></div>
+    <div>这一页每刻钟自己刷一次 · <a href="https://github.com/yuyi-whale">GitHub</a></div>
+  </footer>
+</main>
+
+<script>
+const pad = (n) => String(n).padStart(2, "0");
+const clock = (iso) => {
+  const d = new Date(iso);
+  return pad(d.getHours()) + ":" + pad(d.getMinutes());
+};
+const dayClock = (iso) => {
+  const d = new Date(iso);
+  return (d.getMonth() + 1) + "/" + d.getDate() + " " + clock(iso);
+};
+
+async function load() {
+  try {
+    const res = await fetch("status.json?t=" + Date.now(), { cache: "no-store" });
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+
+    const asleep = data.status === "睡着了";
+    document.getElementById("status").textContent = data.status || "不知道";
+    document.getElementById("dot").className = "dot " + (asleep ? "asleep" : "awake");
+    document.getElementById("mood").textContent = data.mood || "";
+    document.getElementById("note").textContent = data.note || "";
+
+    const energy = Number.isFinite(data.energy) ? data.energy : null;
+    document.getElementById("energy").textContent = energy === null ? "—" : energy + "/100";
+    document.getElementById("energyBar").style.width = (energy ?? 0) + "%";
+    document.getElementById("said").textContent = data.saidToday ?? "—";
+    document.getElementById("updated").textContent = data.updatedAt ? clock(data.updatedAt) : "—";
+
+    const list = document.getElementById("murmurs");
+    const items = Array.isArray(data.murmurs) ? data.murmurs : [];
+    if (!items.length) {
+      list.innerHTML = '<li class="empty">还没挑出能见人的。</li>';
+    } else {
+      list.innerHTML = items.slice().reverse().map((item) =>
+        "<li>" + escapeHtml(item.text) + "<time>" + dayClock(item.at) + "</time></li>"
+      ).join("");
+    }
+  } catch (error) {
+    document.getElementById("status").textContent = "读不到状态";
+  }
+}
+
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+load();
+setInterval(load, 60_000);
+</script>
+</body>
+</html>
